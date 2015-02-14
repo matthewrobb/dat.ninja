@@ -133,7 +133,7 @@
       var data = _decode_string_array(url);
       window.location = "data:" + data[0] + ";charset=utf-8;base64," + btoa(data[1]);
 
-    })(location.hash.replace(/^\#/, ""));
+    })(location.search.replace(/^\?/, ""));
 
   </script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/URI.js/1.11.2/URI.min.js"></script>
@@ -186,7 +186,8 @@
       }
 
       function shortenUrl(longUrl, cb) {
-        var xhr = new XMLHttpRequest();
+        cb(null, {responseText: JSON.stringify({ data: { url: longUrl.toString() } })});
+        /*var xhr = new XMLHttpRequest();
         xhr.open("GET", action("shorten") + "longUrl=" + encodeURIComponent(longUrl));
         xhr.onreadystatechange = function() {
           if(xhr.readyState == 4) {
@@ -197,7 +198,7 @@
             }
           }
         }
-        xhr.send();
+        xhr.send();*/
       }
 
       window.shortenUrl = shortenUrl;
@@ -216,14 +217,18 @@
         lineNumbers: true
       });
 
-      var baseURL = URI("http://dat.ninja");
-
       genButton.onclick = function(e) {
         e.preventDefault();
 
         genButton.disabled = true;
 
-        shortenUrl(baseURL.hash(_encode_string_array(["text/html", text.value])).build(), function(err, xhr) {
+        var baseURL = "http://dat.ninja/";
+
+        if(location.hostname !== "www.dat.ninja") {
+          baseURL = location.href.slice(0, location.href.indexOf("?")) + "/";
+        }
+
+        shortenUrl(baseURL + "?" + _encode_string_array(["text/html", editor.doc.getValue()]), function(err, xhr) {
           genButton.disabled = false;
 
           if(err) {
