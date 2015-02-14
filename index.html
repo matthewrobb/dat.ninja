@@ -133,7 +133,7 @@
       var data = _decode_string_array(url);
       window.location = "data:" + data[0] + ";charset=utf-8;base64," + btoa(data[1]);
 
-    })(location.search.replace(/^\?/, ""));
+    })(location.hash.replace(/^\#/, ""));
 
   </script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/URI.js/1.11.2/URI.min.js"></script>
@@ -225,10 +225,10 @@
         var baseURL = "http://dat.ninja/";
 
         if(location.hostname !== "www.dat.ninja") {
-          baseURL = location.href.slice(0, location.href.indexOf("?")) + "/";
+          baseURL = "http://x.co/7V6U0/";
         }
 
-        shortenUrl(baseURL + "?" + _encode_string_array(["text/html", editor.doc.getValue()]), function(err, xhr) {
+        shortenUrl(baseURL + "#" + _encode_string_array(["text/html", editor.doc.getValue(), Date.now()]), function(err, xhr) {
           genButton.disabled = false;
 
           if(err) {
