@@ -186,8 +186,8 @@
       }
 
       function shortenUrl(longUrl, cb) {
-        cb(null, {responseText: JSON.stringify({ data: { url: longUrl.toString() } })});
-        /*var xhr = new XMLHttpRequest();
+        //cb(null, {responseText: JSON.stringify({ data: { url: longUrl.toString() } })});
+        var xhr = new XMLHttpRequest();
         xhr.open("GET", action("shorten") + "longUrl=" + encodeURIComponent(longUrl));
         xhr.onreadystatechange = function() {
           if(xhr.readyState == 4) {
@@ -198,7 +198,7 @@
             }
           }
         }
-        xhr.send();*/
+        xhr.send();
       }
 
       window.shortenUrl = shortenUrl;
@@ -222,7 +222,7 @@
 
         genButton.disabled = true;
 
-        var baseURL = "http://dat.ninja/";
+        var baseURL = "http://www.dat.ninja/";
 
         if(location.hostname !== "www.dat.ninja") {
           baseURL = "http://x.co/7V6U0/";
