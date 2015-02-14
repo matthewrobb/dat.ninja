@@ -11,7 +11,118 @@
   <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
   <![endif]-->
   <title>dat.ninja</title>
+
+  <script src="https://cdn.rawgit.com/nodeca/pako/master/dist/pako.min.js"></script>
+
   <script>
+    (function() {
+
+      function strtr(str, from, to) {
+        var fr = '',
+          i = 0,
+          j = 0,
+          lenStr = 0,
+          lenFrom = 0,
+          tmpStrictForIn = false,
+          fromTypeStr = '',
+          toTypeStr = '',
+          istr = '';
+        var tmpFrom = [];
+        var tmpTo = [];
+        var ret = '';
+        var match = false;
+
+        // Received replace_pairs?
+        // Convert to normal from->to chars
+        if (typeof from === 'object') {
+          tmpStrictForIn = this.ini_set('phpjs.strictForIn', false); // Not thread-safe; temporarily set to true
+          from = this.krsort(from);
+          this.ini_set('phpjs.strictForIn', tmpStrictForIn);
+
+          for (fr in from) {
+            if (from.hasOwnProperty(fr)) {
+              tmpFrom.push(fr);
+              tmpTo.push(from[fr]);
+            }
+          }
+
+          from = tmpFrom;
+          to = tmpTo;
+        }
+
+        // Walk through subject and replace chars when needed
+        lenStr = str.length;
+        lenFrom = from.length;
+        fromTypeStr = typeof from === 'string';
+        toTypeStr = typeof to === 'string';
+
+        for (i = 0; i < lenStr; i++) {
+          match = false;
+          if (fromTypeStr) {
+            istr = str.charAt(i);
+            for (j = 0; j < lenFrom; j++) {
+              if (istr == from.charAt(j)) {
+                match = true;
+                break;
+              }
+            }
+          } else {
+            for (j = 0; j < lenFrom; j++) {
+              if (str.substr(i, from[j].length) == from[j]) {
+                match = true;
+                // Fast forward
+                i = (i + from[j].length) - 1;
+                break;
+              }
+            }
+          }
+          if (match) {
+            ret += toTypeStr ? to.charAt(j) : to[j];
+          } else {
+            ret += str.charAt(i);
+          }
+        }
+
+        return ret;
+      }
+
+      function addslashes(str) {
+        return (str + '')
+          .replace(/[\\"']/g, '\\$&')
+          .replace(/\u0000/g, '\\0');
+      }
+
+      function stripslashes(str) {
+        return (str + '')
+          .replace(/\\(.?)/g, function(s, n1) {
+            switch (n1) {
+              case '\\':
+                return '\\';
+              case '0':
+                return '\u0000';
+              case '':
+                return '';
+              default:
+                return n1;
+            }
+          });
+      }
+
+      function _encode_string_array ($stringArray) {
+          $s = strtr(btoa(addslashes(pako.deflateRaw(JSON.stringify($stringArray), { to: "string", level: 9 }))), '+/=', '-_,');
+          return $s;
+      }
+
+      function _decode_string_array ($stringArray) {
+          $s = JSON.parse(pako.inflateRaw(stripslashes(atob(strtr($stringArray, '-_,', '+/='))), { to: "string" }));
+          return $s;
+      }
+
+      window._encode_string_array = _encode_string_array;
+      window._decode_string_array = _decode_string_array;
+
+    })();
+
     // http://goo.gl/OhZfPU
     // www.googledrive.com/host/0BxY1plc6foG9SXFxbzV4WTZwUUU
     // 5af26da129885134df2745cd41d15341d0b63d25
@@ -19,10 +130,17 @@
 
       if (!url) return;
 
-      window.location = url;
+      var data = _decode_string_array(url);
+      window.location = "data:" + data[0] + ";charset=utf-8;base64," + btoa(data[1]);
 
     })(location.hash.replace(/^\#/, ""));
+
   </script>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/URI.js/1.11.2/URI.min.js"></script>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/4.12.0/codemirror.min.js" charset="UTF-8"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/4.12.0/mode/xml/xml.min.js" charset="UTF-8"></script>
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/4.12.0/codemirror.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/4.12.0/theme/mdn-like.min.css">
 </head>
 
 <body>
@@ -39,7 +157,9 @@
       <section id="main_content">
         <form id="user-document">
           <div><label for="src">HTML:</label></div>
-          <textarea id="src" name="src" style="width:500px;height:300px;"></textarea>
+          <div style="width:500px;height:300px;">
+            <textarea id="src" name="src"></textarea>
+          </div>
           <div>
             <button id="generate-data-uri">Generate DataURI</button>
           </div>
@@ -84,30 +204,26 @@
     })();
 
     (function() {
+
       var form = document.getElementById("user-document");
       var genButton = document.getElementById("generate-data-uri");
       var text = document.getElementById("src");
       var output = document.getElementById("output");
 
-      function utf8_to_b64( str ) {
-        return window.btoa(unescape(encodeURIComponent( str )));
-      }
+      var editor = window.editor = CodeMirror.fromTextArea(text, {
+        mode: "xml",
+        theme: "mdn-like",
+        lineNumbers: true
+      });
 
-      function genDataURI(str) {
-        // data:[<mime type>][;charset=<charset>][;base64],<encoded data>
-        // data:text/html;charset=utf-8,%3Cscript%3Ealert%28%22hi%22%29%3B%3C%2Fscript%3E
-        // data:text/html;charset=utf-8;base64,PHNjcmlwdD5hbGVydCgiaGkiKTs8L3NjcmlwdD4=
-        return "data:text/html;charset=utf-8;base64," + utf8_to_b64(str);
-      }
-
-      var baseURL = "http://goo.gl/OhZfPU";
+      var baseURL = URI(location.href.slice(0, location.href.indexOf("?")));
 
       genButton.onclick = function(e) {
         e.preventDefault();
 
         genButton.disabled = true;
 
-        shortenUrl(baseURL + "#" + genDataURI(text.value), function(err, xhr) {
+        shortenUrl(baseURL.hash(_encode_string_array(["text/html", text.value])).build(), function(err, xhr) {
           genButton.disabled = false;
 
           if(err) {
@@ -117,10 +233,11 @@
 
           var res = JSON.parse(xhr.responseText);
 
-          output.innerHTML = "<a href='" + res.data.url + "' targe='_blank'>" + res.data.url + "</a>"; //JSON.stringify(res.data, null, 4);
+          output.innerHTML = "<a href='" + res.data.url + "' targe='_blank'>" + res.data.url + "</a>";
 
         });
-      }
+      };
+
     })();
 
   </script>
